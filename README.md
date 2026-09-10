@@ -1,135 +1,178 @@
-# DevOps Capstone Template
+# DevOps Capstone — Python Microservice & CI/CD
 
-![Build Status](https://github.com/josuecross/devops-capstone-project/actions/workflows/ci-build.yaml/badge.svg)
+**Flask + PostgreSQL microservice completed as part of the IBM DevOps and Software Engineering Professional Certificate, with REST API work, automated tests, GitHub Actions CI, Docker/Kubernetes deployment assets, and Tekton pipeline exercises.**
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python 3.9](https://img.shields.io/badge/Python-3.9-green.svg)](https://shields.io/)
+This repository started from the official IBM Skills Network capstone template and was completed through the course's test-driven development, CI/CD, container, Kubernetes, and Tekton assignments.
 
-This repository contains the starter code for the project in [**IBM-CD0285EN-SkillsNetwork DevOps Capstone Project**](https://www.coursera.org/learn/devops-capstone-project?specialization=devops-and-software-engineering) which is part of the [**IBM DevOps and Software Engineering Professional Certificate**](https://www.coursera.org/professional-certificates/devops-and-software-engineering)
+> **Attribution:** the base application and course structure originate from the IBM DevOps Capstone Project. My work in this repository is the implementation and completion of the assigned API, testing, CI/CD, container/deployment, and pipeline tasks. The original IBM copyright and Apache 2.0 license are preserved.
 
-## Usage
+## What this project demonstrates
 
-You should use this template to start your DevOps Capstone project. It contains all of the code that you will need to get started.
+- Python/Flask REST API development
+- PostgreSQL-backed application testing
+- Test-driven development and automated regression checks
+- GitHub Actions continuous integration
+- Containerized CI using a Python image and PostgreSQL service
+- Linting with Flake8
+- Docker application packaging
+- Kubernetes deployment/service manifests
+- Tekton pipeline construction
+- Git branching and pull-request-based course workflow
+- Troubleshooting CI stages as separate application, dependency, database, and environment concerns
 
-Do Not fork this code! It is meant to be used by pressing the  <span style=color:white;background:green>**Use this Template**</span> button in GitHub. This will copy the code to your own repository with no connection back to the original repository like a fork would. This is what you want.
+## Application
 
-## Development Environment
+The capstone uses an **Account** microservice. Its API supports CRUD-style account operations such as:
 
-These labs are designed to be executed in the IBM Developer Skills Network Cloud IDE with OpenShift. Please use the links provided in the Coursera Capstone project to access the lab environment.
+```text
+POST   /accounts
+GET    /accounts
+GET    /accounts/{id}
+PUT    /accounts/{id}
+DELETE /accounts/{id}
+GET    /health
+```
 
-Once you are in the lab environment, you can initialize it with `bin/setup.sh` by sourcing it. (*Note: DO NOT run this program as a bash script. It sets environment variable and so must be sourced*):
+The application separates persistent model behavior from HTTP routing:
+
+```text
+Client
+  |
+  v
+Flask REST routes
+  |
+  v
+Account model / business logic
+  |
+  v
+PostgreSQL
+```
+
+## Repository structure
+
+```text
+.
+├── service/
+│   ├── common/          # logging, status codes, error handlers
+│   ├── config.py        # Flask/application configuration
+│   ├── models.py        # Account persistence model
+│   └── routes.py        # REST endpoints
+├── tests/               # model, route, CLI, and factory tests
+├── .github/workflows/
+│   └── ci-build.yaml    # GitHub Actions CI
+├── deploy/
+│   ├── deployment.yaml  # Kubernetes Deployment
+│   └── service.yaml     # Kubernetes Service
+├── tekton/
+│   ├── pipeline.yaml
+│   ├── tasks.yaml
+│   └── pvc.yaml
+├── Dockerfile
+├── Makefile
+└── requirements.txt
+```
+
+## GitHub Actions CI
+
+The repository includes a CI workflow triggered by pushes and pull requests to `main`.
+
+The job runs in a Python container and starts PostgreSQL as a service dependency:
+
+```text
+checkout
+   |
+   v
+install dependencies
+   |
+   v
+Flake8 validation
+   |
+   v
+Nose test suite
+   |
+   v
+result
+```
+
+The PostgreSQL service includes a health check so application tests do not begin before the database is ready.
+
+This is a useful example of an important CI principle: a failed pipeline can originate from the source code, dependency installation, database readiness, or environment configuration, so each stage needs its own observable result.
+
+## Local development
+
+### Install
+
+```bash
+git clone https://github.com/josuecross/devops-capstone-project.git
+cd devops-capstone-project
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+The original course environment can also be initialized with:
 
 ```bash
 source bin/setup.sh
 ```
 
-This will install Python 3.9, make it the default, modify the bash prompt, create a Python virtual environment and activate it.
+### Run tests
 
-After sourcing it you prompt should look like this:
-
-```bash
-(venv) theia:project$
-```
-
-## Useful commands
-
-Under normal circumstances you should not have to run these commands. They are performed automatically at setup but may be useful when things go wrong:
-
-### Activate the Python 3.9 virtual environment
-
-You can activate the Python 3.9 environment with:
-
-```bash
-source ~/venv/bin/activate
-```
-
-### Installing Python dependencies
-
-These dependencies are installed as part of the setup process but should you need to install them again, first make sure that the Python 3.9 virtual environment is activated and then use the `make install` command:
-
-```bash
-make install
-```
-
-### Starting the Postgres Docker container
-
-The labs use Postgres running in a Docker container. If for some reason the service is not available you can start it with:
+The application tests expect a PostgreSQL database. The included Makefile/course tooling can start the local database environment:
 
 ```bash
 make db
+nosetests
 ```
 
-You can use the `docker ps` command to make sure that postgres is up and running.
+### Run the service
 
-## Project layout
-
-The code for the microservice is contained in the `service` package. All of the test are in the `tests` folder. The code follows the **Model-View-Controller** pattern with all of the database code and business logic in the model (`models.py`), and all of the RESTful routing on the controller (`routes.py`).
-
-```text
-├── service         <- microservice package
-│   ├── common/     <- common log and error handlers
-│   ├── config.py   <- Flask configuration object
-│   ├── models.py   <- code for the persistent model
-│   └── routes.py   <- code for the REST API routes
-├── setup.cfg       <- tools setup config
-└── tests                       <- folder for all of the tests
-    ├── factories.py            <- test factories
-    ├── test_cli_commands.py    <- CLI tests
-    ├── test_models.py          <- model unit tests
-    └── test_routes.py          <- route unit tests
+```bash
+flask run
 ```
 
-## Data Model
+## Container and Kubernetes work
 
-The Account model contains the following fields:
+The repository includes:
 
-| Name | Type | Optional |
-|------|------|----------|
-| id | Integer| False |
-| name | String(64) | False |
-| email | String(64) | False |
-| address | String(256) | False |
-| phone_number | String(32) | True |
-| date_joined | Date | False |
+- a `Dockerfile` for packaging the application;
+- Kubernetes `Deployment` and `Service` manifests;
+- local K3D-related course tooling through the Makefile;
+- Tekton pipeline/task definitions used in the continuous-delivery portion of the capstone.
 
-## Your Task
+These artifacts connect application development with the delivery environment rather than treating CI/CD as an isolated YAML exercise.
 
-Complete this microservice by implementing REST API's for `READ`, `UPDATE`, `DELETE`, and `LIST` while maintaining **95%** code coverage. In true **Test Driven Development** fashion, first write tests for the code you "wish you had", and then write the code to make them pass.
+## Engineering takeaways
 
-## Local Kubernetes Development
+The most valuable part of this project for me was connecting several layers of software delivery:
 
-This repo can also be used for local Kubernetes development. It is not advised that you run these commands in the Cloud IDE environment. The purpose of these commands are to simulate the Cloud IDE environment locally on your computer. 
+1. implement application behavior;
+2. define automated tests for that behavior;
+3. reproduce the required database environment;
+4. run validation consistently in CI;
+5. package the service;
+6. describe deployment through Kubernetes manifests;
+7. build pipeline tasks that move changes through the delivery workflow.
 
-At a minimum, you will need [Docker Desktop](https://www.docker.com/products/docker-desktop) installed on your computer. For the full development environment, you will also need [Visual Studio Code](https://code.visualstudio.com) with the [Remote Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension from the Visual Studio Marketplace. All of these can be installed manually by clicking on the links above or you can use a package manager like **Homebrew** on Mac of **Chocolatey** on Windows.
+It also reinforced the distinction between a pipeline step completing and the deployed application actually behaving correctly.
 
-Please only use these commands for working stand-alone on your own computer with the VSCode Remote Container environment provided.
+## Course context and license
 
-1. Bring up a local K3D Kubernetes cluster
+This repository is based on the **IBM DevOps Capstone Project** from the IBM DevOps and Software Engineering Professional Certificate.
 
-    ```bash
-    $ make cluster
-    ```
+Course information:
+- [IBM DevOps Capstone Project](https://www.coursera.org/learn/devops-capstone-project?specialization=devops-and-software-engineering)
+- [IBM DevOps and Software Engineering Professional Certificate](https://www.coursera.org/professional-certificates/devops-and-software-engineering)
 
-2. Install Tekton
+The repository retains the original **Apache License 2.0** and IBM attribution.
 
-    ```bash
-    $ make tekton
-    ```
+## Portfolio relevance
 
-3. Install the ClusterTasks that the Cloud IDE has
+This project demonstrates hands-on experience connecting **Python, REST APIs, PostgreSQL, automated testing, GitHub Actions, Docker, Kubernetes, and CI/CD concepts** in one delivery workflow.
 
-    ```bash
-    $ make clustertasks
-    ```
+## Author / Student
 
-You can now perform Tekton development locally, just like in the Cloud IDE lab environment.
-
-## Author
-
-[John Rofrano](https://www.coursera.org/instructor/johnrofrano), Senior Technical Staff Member, DevOps Champion, @ IBM Research, and Instructor @ Coursera
-
-## License
-
-Licensed under the Apache License. See [LICENSE](LICENSE)
-
-## <h3 align="center"> © IBM Corporation 2022. All rights reserved. <h3/>
+**Josue David Cruz Lopez**  
+Costa Rica  
+GitHub: [@josuecross](https://github.com/josuecross)  
+LinkedIn: [josue-david-c](https://www.linkedin.com/in/josue-david-c/)
