@@ -1,176 +1,194 @@
-# DevOps Capstone — Python Microservice & CI/CD
+# DevOps Capstone Project — CI/CD, Containers & Kubernetes
 
-**Flask + PostgreSQL microservice completed as part of the IBM DevOps and Software Engineering Professional Certificate, with REST API work, automated tests, GitHub Actions CI, Docker/Kubernetes deployment assets, and Tekton pipeline exercises.**
+![Build Status](https://github.com/josuecross/devops-capstone-project/actions/workflows/ci-build.yaml/badge.svg)
 
-This repository started from the official IBM Skills Network capstone template and was completed through the course's test-driven development, CI/CD, container, Kubernetes, and Tekton assignments.
+A hands-on DevOps and software-delivery project built as part of the **IBM DevOps and Software Engineering Professional Certificate**. The repository demonstrates a Python/Flask REST microservice backed by PostgreSQL, automated testing and linting, Docker packaging, GitHub Actions CI, Kubernetes deployment manifests, and a Tekton delivery pipeline.
 
-> **Attribution:** the base application and course structure originate from the IBM DevOps Capstone Project. My work in this repository is the implementation and completion of the assigned API, testing, CI/CD, container/deployment, and pipeline tasks. The original IBM copyright and Apache 2.0 license are preserved.
+> This project began from the official IBM Skills Network capstone starter code. My work completed and extended the required REST endpoints, tests, CI/CD configuration, container/deployment assets, and pipeline tasks. The repository retains IBM's original Apache 2.0 license and attribution.
 
 ## What this project demonstrates
 
 - Python/Flask REST API development
-- PostgreSQL-backed application testing
-- Test-driven development and automated regression checks
-- GitHub Actions continuous integration
-- Containerized CI using a Python image and PostgreSQL service
-- Linting with Flake8
-- Docker application packaging
-- Kubernetes deployment/service manifests
-- Tekton pipeline construction
-- Git branching and pull-request-based course workflow
-- Troubleshooting CI stages as separate application, dependency, database, and environment concerns
+- PostgreSQL-backed application behavior
+- Test-driven development and automated API/model tests
+- GitHub Actions CI with a containerized build environment
+- Service dependency health checks before test execution
+- Flake8 linting and Nose test automation
+- Docker containerization
+- Kubernetes Deployment and Service manifests
+- Tekton pipeline tasks for build, test, and deployment workflows
+- Git branching and pull-request-based development
 
-## Application
-
-The capstone uses an **Account** microservice. Its API supports CRUD-style account operations such as:
-
-```text
-POST   /accounts
-GET    /accounts
-GET    /accounts/{id}
-PUT    /accounts/{id}
-DELETE /accounts/{id}
-GET    /health
-```
-
-The application separates persistent model behavior from HTTP routing:
+## Application architecture
 
 ```text
 Client
   |
   v
-Flask REST routes
+Flask REST API
   |
-  v
-Account model / business logic
+  +-- routes.py       -> HTTP endpoints and request handling
+  +-- models.py       -> Account model and persistence logic
+  +-- common/         -> logging, status codes, error handlers
   |
   v
 PostgreSQL
 ```
 
-## Repository structure
+The service exposes an Account resource with create, list, read, update, and delete operations.
+
+### Example endpoints
 
 ```text
-.
-├── service/
-│   ├── common/          # logging, status codes, error handlers
-│   ├── config.py        # Flask/application configuration
-│   ├── models.py        # Account persistence model
-│   └── routes.py        # REST endpoints
-├── tests/               # model, route, CLI, and factory tests
-├── .github/workflows/
-│   └── ci-build.yaml    # GitHub Actions CI
-├── deploy/
-│   ├── deployment.yaml  # Kubernetes Deployment
-│   └── service.yaml     # Kubernetes Service
-├── tekton/
-│   ├── pipeline.yaml
-│   ├── tasks.yaml
-│   └── pvc.yaml
-├── Dockerfile
-├── Makefile
-└── requirements.txt
+GET    /health
+POST   /accounts
+GET    /accounts
+GET    /accounts/{id}
+PUT    /accounts/{id}
+DELETE /accounts/{id}
 ```
 
-## GitHub Actions CI
+The application separates request handling from model/persistence behavior and returns explicit HTTP status codes for successful and unsuccessful operations.
 
-The repository includes a CI workflow triggered by pushes and pull requests to `main`.
+## Continuous Integration with GitHub Actions
 
-The job runs in a Python container and starts PostgreSQL as a service dependency:
+The GitHub Actions workflow runs for pushes and pull requests targeting `main`.
 
 ```text
-checkout
+Checkout
    |
    v
-install dependencies
+Python 3.9 container
+   |
+   +--> PostgreSQL service container
+   |       |
+   |       +--> pg_isready health check
+   |
+   v
+Install dependencies
    |
    v
 Flake8 validation
    |
    v
 Nose test suite
-   |
-   v
-result
 ```
 
-The PostgreSQL service includes a health check so application tests do not begin before the database is ready.
+A PostgreSQL service container is declared as part of the CI job. The workflow waits for database readiness before running the application test suite, making the database dependency explicit and repeatable in CI.
 
-This is a useful example of an important CI principle: a failed pipeline can originate from the source code, dependency installation, database readiness, or environment configuration, so each stage needs its own observable result.
+The credentials used in the CI definition are disposable local/test values for the isolated workflow service container; no production credentials are stored in this repository.
 
-## Local development
+## Testing
 
-### Install
+Tests cover the application model and REST routes, including normal and failure behavior.
 
 ```bash
-git clone https://github.com/josuecross/devops-capstone-project.git
-cd devops-capstone-project
+nosetests
+```
+
+The project follows the capstone's test-driven development approach: define expected behavior in tests, implement the corresponding endpoint/model logic, and rerun the suite to validate the result.
+
+## Containerization
+
+The repository includes a `Dockerfile` for packaging the Flask service into a container image.
+
+```bash
+docker build -t account-service .
+```
+
+The application can also be run with a local PostgreSQL container using the provided Makefile targets.
+
+## Kubernetes deployment
+
+Deployment assets under `deploy/` define:
+
+- a Kubernetes `Deployment` for the application;
+- a Kubernetes `Service` for network access;
+- environment-driven database configuration.
+
+The deployment configuration consumes database credentials through Kubernetes references rather than embedding application credentials directly in the workload definition.
+
+## Tekton pipeline
+
+The `tekton/` directory contains pipeline and task definitions used in the capstone's continuous-delivery workflow.
+
+The pipeline demonstrates the progression from source code through validation and build stages toward deployment. I implemented and committed pipeline tasks incrementally as part of the exercise, including test, build, and deploy stages.
+
+## Repository structure
+
+```text
+.github/workflows/
+  ci-build.yaml        # GitHub Actions CI
+
+service/
+  common/              # shared logging/error/status helpers
+  config.py            # application/database configuration
+  models.py            # Account persistence model
+  routes.py            # REST API endpoints
+
+tests/                 # unit/API tests and factories
+
+deploy/
+  deployment.yaml      # Kubernetes Deployment
+  service.yaml         # Kubernetes Service
+
+tekton/
+  pipeline.yaml        # Tekton pipeline
+  tasks.yaml           # pipeline tasks
+  pvc.yaml             # pipeline workspace storage
+
+Dockerfile             # application container image
+Makefile               # local development helpers
+```
+
+## Running locally
+
+### Install dependencies
+
+```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-The original course environment can also be initialized with:
+### Start PostgreSQL
+
+If Docker is available:
 
 ```bash
-source bin/setup.sh
+make db
 ```
 
 ### Run tests
 
-The application tests expect a PostgreSQL database. The included Makefile/course tooling can start the local database environment:
-
 ```bash
-make db
 nosetests
 ```
 
-### Run the service
+### Run the application
 
 ```bash
 flask run
 ```
 
-## Container and Kubernetes work
+## Engineering lessons demonstrated
 
-The repository includes:
+This project reinforced several practical delivery principles:
 
-- a `Dockerfile` for packaging the application;
-- Kubernetes `Deployment` and `Service` manifests;
-- local K3D-related course tooling through the Makefile;
-- Tekton pipeline/task definitions used in the continuous-delivery portion of the capstone.
+- a pipeline passing and an application actually working are separate things to validate;
+- external dependencies such as databases need explicit readiness handling in CI;
+- automated checks are easier to diagnose when linting, dependency setup, and tests are separate stages;
+- containerized environments improve repeatability between development and CI;
+- deployment manifests should keep configuration and secrets outside application code;
+- version-control history and pull requests provide a traceable path from implementation to validation.
 
-These artifacts connect application development with the delivery environment rather than treating CI/CD as an isolated YAML exercise.
+## Project origin and attribution
 
-## Engineering takeaways
+This repository was completed as part of the **IBM DevOps Capstone Project** in the IBM DevOps and Software Engineering Professional Certificate. IBM supplied starter/template material for the course; the implementation and pipeline work in this repository reflects my completed capstone exercises.
 
-The most valuable part of this project for me was connecting several layers of software delivery:
+Original course attribution and licensing remain under the repository's Apache 2.0 `LICENSE`.
 
-1. implement application behavior;
-2. define automated tests for that behavior;
-3. reproduce the required database environment;
-4. run validation consistently in CI;
-5. package the service;
-6. describe deployment through Kubernetes manifests;
-7. build pipeline tasks that move changes through the delivery workflow.
-
-It also reinforced the distinction between a pipeline step completing and the deployed application actually behaving correctly.
-
-## Course context and license
-
-This repository is based on the **IBM DevOps Capstone Project** from the IBM DevOps and Software Engineering Professional Certificate.
-
-Course information:
-- [IBM DevOps Capstone Project](https://www.coursera.org/learn/devops-capstone-project?specialization=devops-and-software-engineering)
-- [IBM DevOps and Software Engineering Professional Certificate](https://www.coursera.org/professional-certificates/devops-and-software-engineering)
-
-The repository retains the original **Apache License 2.0** and IBM attribution.
-
-## Portfolio relevance
-
-This project demonstrates hands-on experience connecting **Python, REST APIs, PostgreSQL, automated testing, GitHub Actions, Docker, Kubernetes, and CI/CD concepts** in one delivery workflow.
-
-## Author / Student
+## Author
 
 **Josue David Cruz Lopez**  
 Costa Rica  
